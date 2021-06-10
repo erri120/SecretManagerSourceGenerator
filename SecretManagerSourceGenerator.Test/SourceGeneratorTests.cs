@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Text;
 using Xunit;
@@ -11,12 +12,15 @@ namespace SecretManagerSourceGenerator.Test
         [Fact]
         public async Task TestSourceGenerator()
         {
+            Environment.SetEnvironmentVariable($"{Generator.EnvStart}ArchiveKey", "MyArchiveKey", EnvironmentVariableTarget.Process);
+            
             const string generated = @"
 namespace SecretManager
 {
     public static class SecretManager
     {
 
+        public static string GetArchiveKey() => ""MyArchiveKey"";
         public static string GetApiKey() => ""MyApiKey"";
     }
 }

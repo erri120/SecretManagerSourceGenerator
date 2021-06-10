@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,28 +12,44 @@ namespace SecretManagerSourceGenerator
     [Generator]
     public class Generator : ISourceGenerator
     {
+        private const string FileName = "SecretManager.generated.cs";
+        public const string EnvStart = "SECRET_MANAGER_SOURCE_GEN_";
+
+        private readonly Dictionary<string, string> _secrets = new Dictionary<string, string>();
+        
         public void Initialize(GeneratorInitializationContext context) { }
 
         public void Execute(GeneratorExecutionContext context)
         {
+            var variables = Environment.GetEnvironmentVariables(EnvironmentVariableTarget.Process);
+            foreach (DictionaryEntry de in variables)
+            {
+                if (!(de.Key is string key)) continue;
+                if (!(de.Value is string value)) continue;
+                if (!key.StartsWith(EnvStart)) continue;
+
+                key = key.Substring(EnvStart.Length);
+                
+                _secrets.Add(key, value);
+            }
+            
             var secretFile = context.AdditionalFiles.FirstOrDefault(x =>
                 Path.GetFileName(x.Path).Equals("Secret.txt", StringComparison.OrdinalIgnoreCase));
             
             if (secretFile == null)
             {
-                context.AddSource("SecretManagerGenerated", SourceText.From("", Encoding.UTF8));
+                context.AddSource(FileName, SourceText.From("", Encoding.UTF8));
                 return;
             }
 
             var content = secretFile.GetText();
             if (content == null)
             {
-                context.AddSource("SecretManagerGenerated", SourceText.From("", Encoding.UTF8));
+                context.AddSource(FileName, SourceText.From("", Encoding.UTF8));
                 return;
             }
 
             var lines = content.ToString().Split('\n');
-            var secrets = new Dictionary<string, string>(lines.Length);
 
             foreach (var line in lines)
             {
@@ -43,7 +60,7 @@ namespace SecretManagerSourceGenerator
                 var key = line.Substring(0, splitIndex);
                 var value = line.Substring(splitIndex + 1, line.Length - splitIndex - 1).Trim();
                 
-                secrets.Add(key, value);
+                _secrets.Add(key, value);
             }
             
             var sb = new StringBuilder(@"
@@ -52,7 +69,7 @@ namespace SecretManager
     public static class SecretManager
     {
 ");
-            foreach (var secret in secrets)
+            foreach (var secret in _secrets)
             {
                 var key = secret.Key;
                 var value = secret.Value;
@@ -69,7 +86,7 @@ namespace SecretManager
     }
 }
 ");
-            context.AddSource("SecretManager.generated.cs", SourceText.From(sb.ToString(), Encoding.UTF8, SourceHashAlgorithm.Sha256));
+            context.AddSource(FileName, SourceText.From(sb.ToString(), Encoding.UTF8, SourceHashAlgorithm.Sha256));
         }
     }
 }
