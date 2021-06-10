@@ -10,10 +10,8 @@ namespace SecretManagerSourceGenerator.Test
     public class SourceGeneratorTests
     {
         [Fact]
-        public async Task TestSourceGenerator()
+        public async Task TestSourceGeneratorWithEnvironmentVariables()
         {
-            Environment.SetEnvironmentVariable($"{Generator.EnvStart}ArchiveKey", "MyArchiveKey", EnvironmentVariableTarget.Process);
-            
             const string generated = @"
 namespace SecretManager
 {
@@ -21,6 +19,36 @@ namespace SecretManager
     {
 
         public static string GetArchiveKey() => ""MyArchiveKey"";
+    }
+}
+";
+            
+            Environment.SetEnvironmentVariable($"{Generator.EnvStart}ArchiveKey", "MyArchiveKey", EnvironmentVariableTarget.Process);
+            
+            await new VerifyCS.Test
+            {
+                TestState =
+                {
+                    GeneratedSources =
+                    {
+                        (typeof(Generator), "SecretManager.generated.cs", SourceText.From(generated, Encoding.UTF8, SourceHashAlgorithm.Sha256))
+                    }
+                }
+            }.RunAsync();
+        }
+        
+        [Fact]
+        public async Task TestSourceGeneratorWithSecretFile()
+        {
+            // making sure to delete this Environment Variable so the Generator does not pick it up
+            Environment.SetEnvironmentVariable($"{Generator.EnvStart}ArchiveKey", null, EnvironmentVariableTarget.Process);
+            
+            const string generated = @"
+namespace SecretManager
+{
+    public static class SecretManager
+    {
+
         public static string GetApiKey() => ""MyApiKey"";
     }
 }
@@ -39,7 +67,8 @@ namespace SecretManager
                         ("Secret.txt", "ApiKey=MyApiKey")
                     }
                 }
-            }.RunAsync();
+            }.RunAsync(); 
         }
+
     }
 }

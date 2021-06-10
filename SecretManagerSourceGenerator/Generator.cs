@@ -35,34 +35,25 @@ namespace SecretManagerSourceGenerator
             
             var secretFile = context.AdditionalFiles.FirstOrDefault(x =>
                 Path.GetFileName(x.Path).Equals("Secret.txt", StringComparison.OrdinalIgnoreCase));
-            
-            if (secretFile == null)
+
+            var content = secretFile?.GetText();
+            if (content != null)
             {
-                context.AddSource(FileName, SourceText.From("", Encoding.UTF8));
-                return;
-            }
+                var lines = content.ToString().Split('\n');
 
-            var content = secretFile.GetText();
-            if (content == null)
-            {
-                context.AddSource(FileName, SourceText.From("", Encoding.UTF8));
-                return;
-            }
+                foreach (var line in lines)
+                {
+                    var splitIndex = line.IndexOf('=');
+                    if (splitIndex == -1)
+                        continue;
 
-            var lines = content.ToString().Split('\n');
-
-            foreach (var line in lines)
-            {
-                var splitIndex = line.IndexOf('=');
-                if (splitIndex == -1)
-                    continue;
-
-                var key = line.Substring(0, splitIndex);
-                var value = line.Substring(splitIndex + 1, line.Length - splitIndex - 1).Trim();
+                    var key = line.Substring(0, splitIndex);
+                    var value = line.Substring(splitIndex + 1, line.Length - splitIndex - 1).Trim();
                 
-                _secrets.Add(key, value);
+                    _secrets.Add(key, value);
+                }
             }
-            
+
             var sb = new StringBuilder(@"
 namespace SecretManager
 {
